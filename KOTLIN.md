@@ -122,14 +122,24 @@ class Test(val t: String) {
 }
 
 ```
+Accessing a `lateinit` property before it has been initialized throws a special exception that clearly identifies the property being accessed and the fact that it hasn't been initialized.
 
-'lateinit' modifier is not allowed on abstract properties
+#### >>>3. Is it possible to declare lateinit properties in abstract classes?? ++
+Yes, it is posible. An abstract class can contain properties with some data.
 ```kotlin
 abstract class Example {
-    abstract lateinit var name: Any //'lateinit' modifier is not allowed on abstract properties
+    val age = 0
+    lateinit var name: Any
 }
 ```
-Accessing a `lateinit` property before it has been initialized throws a special exception that clearly identifies the property being accessed and the fact that it hasn't been initialized.
+But `lateinit` modifier is not allowed on abstract properties
+```kotlin
+abstract class Example {
+    val age = 0
+    abstract lateinit var name: Any //ERROR: 'lateinit' modifier is not allowed on abstract properties
+}
+```
+
 
 #### q
 ### Interfaces
@@ -264,6 +274,84 @@ public final class SomeSingleton {
 This is the preferred way to implement singletons on a JVM because it enables thread-safe lazy initialization without having to rely on a locking algorithm like the complex double-checked locking.
 A `static` block is a set of instructions that is run only once when a class is loaded into memory. The `class loader` is responsible for loading classes into memory. Loading and initializing classes is a thread-safe operation, the `class loader` itself takes care of this.
 
+#### >>> 2. What are companion objects in Kotlin? +
+In Kotlin, if you want to write a function or any member of the class that can be called without having the instance of the class then you can write the same as a member of a companion object inside the class. To create a companion object, you need to add the `companion` keyword in front of the `object declaration: 
+ ```kotlin
+class MyClass {
+    companion object Factory { // "Factory" can be omitted.
+        fun create(): MyClass = MyClass()
+    }
+}
+ ```
+Class members can access the private members of the corresponding companion object:
+  ```kotlin
+class MyClass {
+
+    fun test() {
+        check()
+    }
+
+    companion object {
+
+        fun create(): MyClass = MyClass()
+
+        private fun check() {}
+    }
+}
+
+class MyClass2 {
+
+    fun test() {
+        val my = MyClass.create()
+        MyClass.check() //ERROR: Cannot access 'check': it is private in 'Companion'
+    }
+}
+ ```
+Note that even though the members of companion objects look like static members in other languages, at runtime those are still instance members of real objects, and can, for example, implement interfaces:
+```kotlin
+interface Factory<T> {
+    fun create(): T
+}
+
+class MyClass {
+    companion object : Factory<MyClass> {
+        override fun create(): MyClass = MyClass()
+    }
+}
+
+val f: Factory<MyClass> = MyClass //java code: f = (Factory)MyClass.Companion;
+```
+However, on the JVM you can have members of companion objects generated as real static methods and fields if you use the `@JvmStatic` annotation.
+
+#### >>> 2. What is the equivalent of Java static methods in Kotlin? ++
+To achieve the functionality similar to Java static methods in Kotlin, we can use:
+ - `companion object`
+ ```kotlin
+class MyClass {
+
+    companion object  {
+        fun create(): MyClass = MyClass()
+    }
+}
+```
+ - `package-level function`
+ ```kotlin
+fun create(): MyClass = MyClass()
+
+class MyClass
+ ```
+- `object`
+```kotlin
+object MyClass {
+}
+ ```
+#### >>> 3. Explain the semantic difference between object expressions and declarations +++
+There is one important semantic difference between object expressions and object declarations:
+ - `Object expressions` are executed (and initialized) **immediately**, where they are used.
+ - `Object declarations` are initialized **lazily**, when accessed for the first time.
+ - A `companion object` is initialized when the corresponding class is loaded (resolved) that matches the semantics of a Java static initializer. In other words`companion objects` are initialized the first time the containing class is loaded — even if the companion object is not used.
+
+
 #### q
 ### Delegation
 #### q
@@ -315,6 +403,18 @@ val l = b.length // error: variable 'b' can be null
 ## This expressions
 ## Asynchronous programming techniques
 ## Coroutines
+#### >>>1. What is suspend function in Kotlin Coroutines? + 
+A suspending function is just a regular Kotlin function with an additional `suspend` modifier which indicates that the function can suspend the execution of a coroutine without blocking the current thread. This means that the code you are looking at might stop executing at the moment it calls a suspending function, and will resume at some later time. However, it doesn’t say anything about what the current thread will do in the meantime.
+Suspending functions can invoke any other regular functions, but to actually suspend the execution, it has to be another suspending function. A suspending function cannot be invoked from a regular function, therefore several so-called coroutine builders are provided, which allow calling a suspending function from a regular non-suspending scope like `launch`, `async`, `runBlocking`.
+
+#### >>>2. What is the difference between Launch and Async in Kotlin Coroutines?
+ - `launch` is used to fire and forget coroutine. It is like starting a new thread. If the code inside the launch terminates with exception, then it is treated like uncaught exception in a thread -- usually printed to stderr in backend JVM applications and crashes Android applications. `join` is used to wait for completion of the launched coroutine and it does not propagate its exception. However, a crashed child coroutine cancels its parent with the corresponding exception, too.
+
+ - `async` is used to start a coroutine that computes some result. The result is represented by an instance of `Deferred` and you must use await on it. An uncaught exception inside the async code is stored inside the resulting `Deferred` and is not delivered anywhere else, it will get silently dropped unless processed. You MUST NOT forget about the coroutine you’ve started with async.
+
+
+
+
 ## Annotations
 ## Destructuring declarations
 ## Reflection
